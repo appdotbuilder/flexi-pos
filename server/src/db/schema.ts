@@ -5,18 +5,18 @@ import {
   timestamp, 
   numeric, 
   integer, 
-  boolean,
+  boolean, 
   pgEnum,
-  varchar,
-  jsonb
+  varchar
 } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 // Enums
-export const userRoleEnum = pgEnum('user_role', ['SUPER_ADMIN', 'ADMIN', 'CASHIER', 'SALES']);
-export const transactionStatusEnum = pgEnum('transaction_status', ['DRAFT', 'FINAL', 'CANCELLED', 'RETURNED']);
-export const packingStatusEnum = pgEnum('packing_status', ['NOT_PROCESSED', 'PROCESSED', 'READY_TO_SHIP', 'SHIPPED']);
-export const salesTypeEnum = pgEnum('sales_type', ['RETAIL', 'WHOLESALE', 'ONLINE']);
-export const activityTypeEnum = pgEnum('activity_type', ['LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE', 'PURCHASE', 'SALE', 'RETURN', 'TRANSFER', 'PAYMENT']);
+export const userRoleEnum = pgEnum('user_role', ['CASHIER', 'INVENTORY_MANAGER', 'ADMINISTRATOR', 'SUPER_ADMIN']);
+export const transactionTypeEnum = pgEnum('transaction_type', ['RETAIL', 'WHOLESALE']);
+export const transactionStatusEnum = pgEnum('transaction_status', ['PENDING', 'COMPLETED', 'CANCELLED', 'RETURNED']);
+export const orderStatusEnum = pgEnum('order_status', ['PENDING', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED']);
+export const paymentStatusEnum = pgEnum('payment_status', ['PENDING', 'PAID', 'OVERDUE', 'CANCELLED']);
 
 // Users table
 export const usersTable = pgTable('users', {
@@ -24,109 +24,38 @@ export const usersTable = pgTable('users', {
   username: varchar('username', { length: 50 }).notNull().unique(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   password_hash: text('password_hash').notNull(),
-  full_name: text('full_name').notNull(),
   role: userRoleEnum('role').notNull(),
-  store_id: integer('store_id'),
+  first_name: varchar('first_name', { length: 100 }).notNull(),
+  last_name: varchar('last_name', { length: 100 }).notNull(),
   is_active: boolean('is_active').notNull().default(true),
   created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Stores table
-export const storesTable = pgTable('stores', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  address: text('address'),
-  phone: varchar('phone', { length: 20 }),
-  is_active: boolean('is_active').notNull().default(true),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull()
 });
 
 // Warehouses table
 export const warehousesTable = pgTable('warehouses', {
   id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  location: text('location'),
+  name: varchar('name', { length: 255 }).notNull(),
+  address: text('address').notNull(),
+  phone: varchar('phone', { length: 20 }),
+  email: varchar('email', { length: 255 }),
   is_active: boolean('is_active').notNull().default(true),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Product Categories table
-export const productCategoriesTable = pgTable('product_categories', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  description: text('description'),
-  is_active: boolean('is_active').notNull().default(true),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Unit Conversions table
-export const unitConversionsTable = pgTable('unit_conversions', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  base_unit: text('base_unit').notNull(),
-  conversion_factor: numeric('conversion_factor', { precision: 10, scale: 4 }).notNull(),
-  is_active: boolean('is_active').notNull().default(true),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull()
 });
 
 // Products table
 export const productsTable = pgTable('products', {
   id: serial('id').primaryKey(),
-  name: text('name').notNull(),
+  sku: varchar('sku', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  barcode: varchar('barcode', { length: 100 }),
-  category_id: integer('category_id').notNull(),
-  unit_conversion_id: integer('unit_conversion_id').notNull(),
-  cost_price: numeric('cost_price', { precision: 10, scale: 2 }).notNull(),
-  selling_price: numeric('selling_price', { precision: 10, scale: 2 }).notNull(),
+  retail_price: numeric('retail_price', { precision: 10, scale: 2 }).notNull(),
   wholesale_price: numeric('wholesale_price', { precision: 10, scale: 2 }).notNull(),
-  minimum_stock: integer('minimum_stock').notNull().default(0),
+  cost_price: numeric('cost_price', { precision: 10, scale: 2 }).notNull(),
+  barcode: varchar('barcode', { length: 100 }),
   is_active: boolean('is_active').notNull().default(true),
   created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Customers table
-export const customersTable = pgTable('customers', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  email: varchar('email', { length: 255 }),
-  phone: varchar('phone', { length: 20 }),
-  address: text('address'),
-  credit_limit: numeric('credit_limit', { precision: 10, scale: 2 }).notNull().default('0'),
-  is_active: boolean('is_active').notNull().default(true),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Suppliers table
-export const suppliersTable = pgTable('suppliers', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  email: varchar('email', { length: 255 }),
-  phone: varchar('phone', { length: 20 }),
-  address: text('address'),
-  is_active: boolean('is_active').notNull().default(true),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Employees table
-export const employeesTable = pgTable('employees', {
-  id: serial('id').primaryKey(),
-  full_name: text('full_name').notNull(),
-  position: text('position').notNull(),
-  email: varchar('email', { length: 255 }),
-  phone: varchar('phone', { length: 20 }),
-  commission_rate: numeric('commission_rate', { precision: 5, scale: 2 }).notNull().default('0'),
-  is_active: boolean('is_active').notNull().default(true),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull()
 });
 
 // Inventory table
@@ -137,21 +66,62 @@ export const inventoryTable = pgTable('inventory', {
   quantity: integer('quantity').notNull().default(0),
   reserved_quantity: integer('reserved_quantity').notNull().default(0),
   reorder_level: integer('reorder_level').notNull().default(0),
-  last_updated: timestamp('last_updated').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Customers table
+export const customersTable = pgTable('customers', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 20 }),
+  address: text('address'),
+  customer_type: transactionTypeEnum('customer_type').notNull(),
+  credit_limit: numeric('credit_limit', { precision: 10, scale: 2 }),
+  created_at: timestamp('created_at').defaultNow().notNull()
+});
+
+// Sales Transactions table
+export const salesTransactionsTable = pgTable('sales_transactions', {
+  id: serial('id').primaryKey(),
+  customer_id: integer('customer_id'),
+  cashier_id: integer('cashier_id').notNull(),
+  transaction_type: transactionTypeEnum('transaction_type').notNull(),
+  status: transactionStatusEnum('status').notNull().default('PENDING'),
+  subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
+  tax_amount: numeric('tax_amount', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  discount_amount: numeric('discount_amount', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  total_amount: numeric('total_amount', { precision: 10, scale: 2 }).notNull(),
+  payment_method: varchar('payment_method', { length: 50 }).notNull(),
+  notes: text('notes'),
+  created_at: timestamp('created_at').defaultNow().notNull()
+});
+
+// Sales Transaction Items table
+export const salesTransactionItemsTable = pgTable('sales_transaction_items', {
+  id: serial('id').primaryKey(),
+  transaction_id: integer('transaction_id').notNull(),
+  product_id: integer('product_id').notNull(),
+  quantity: integer('quantity').notNull(),
+  unit_price: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
+  total_price: numeric('total_price', { precision: 10, scale: 2 }).notNull()
 });
 
 // Purchase Orders table
 export const purchaseOrdersTable = pgTable('purchase_orders', {
   id: serial('id').primaryKey(),
-  supplier_id: integer('supplier_id').notNull(),
-  user_id: integer('user_id').notNull(),
-  order_date: timestamp('order_date').defaultNow().notNull(),
-  expected_delivery_date: timestamp('expected_delivery_date'),
-  status: transactionStatusEnum('status').notNull().default('DRAFT'),
-  total_amount: numeric('total_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  supplier_name: varchar('supplier_name', { length: 255 }).notNull(),
+  supplier_email: varchar('supplier_email', { length: 255 }),
+  supplier_phone: varchar('supplier_phone', { length: 20 }),
+  warehouse_id: integer('warehouse_id').notNull(),
+  status: orderStatusEnum('status').notNull().default('PENDING'),
+  subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
+  tax_amount: numeric('tax_amount', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  total_amount: numeric('total_amount', { precision: 10, scale: 2 }).notNull(),
   notes: text('notes'),
+  created_by: integer('created_by').notNull(),
   created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull()
 });
 
 // Purchase Order Items table
@@ -161,206 +131,193 @@ export const purchaseOrderItemsTable = pgTable('purchase_order_items', {
   product_id: integer('product_id').notNull(),
   quantity: integer('quantity').notNull(),
   unit_cost: numeric('unit_cost', { precision: 10, scale: 2 }).notNull(),
-  total_cost: numeric('total_cost', { precision: 10, scale: 2 }).notNull(),
+  total_cost: numeric('total_cost', { precision: 10, scale: 2 }).notNull()
 });
 
-// Sales Transactions table
-export const salesTransactionsTable = pgTable('sales_transactions', {
+// Shipping table
+export const shippingTable = pgTable('shipping', {
   id: serial('id').primaryKey(),
-  customer_id: integer('customer_id'),
-  user_id: integer('user_id').notNull(),
-  store_id: integer('store_id').notNull(),
-  sales_type: salesTypeEnum('sales_type').notNull(),
-  transaction_date: timestamp('transaction_date').defaultNow().notNull(),
-  subtotal: numeric('subtotal', { precision: 12, scale: 2 }).notNull(),
-  discount_amount: numeric('discount_amount', { precision: 10, scale: 2 }).notNull().default('0'),
-  tax_amount: numeric('tax_amount', { precision: 10, scale: 2 }).notNull().default('0'),
-  total_amount: numeric('total_amount', { precision: 12, scale: 2 }).notNull(),
-  paid_amount: numeric('paid_amount', { precision: 12, scale: 2 }).notNull().default('0'),
-  status: transactionStatusEnum('status').notNull().default('FINAL'),
+  transaction_id: integer('transaction_id').notNull(),
+  shipping_address: text('shipping_address').notNull(),
   tracking_number: varchar('tracking_number', { length: 100 }),
-  notes: text('notes'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  carrier: varchar('carrier', { length: 100 }),
+  shipping_cost: numeric('shipping_cost', { precision: 10, scale: 2 }).notNull(),
+  estimated_delivery: timestamp('estimated_delivery'),
+  actual_delivery: timestamp('actual_delivery'),
+  status: orderStatusEnum('status').notNull().default('PENDING'),
+  created_at: timestamp('created_at').defaultNow().notNull()
 });
 
-// Sales Transaction Items table
-export const salesTransactionItemsTable = pgTable('sales_transaction_items', {
-  id: serial('id').primaryKey(),
-  sales_transaction_id: integer('sales_transaction_id').notNull(),
-  product_id: integer('product_id').notNull(),
-  quantity: integer('quantity').notNull(),
-  unit_price: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
-  discount_percent: numeric('discount_percent', { precision: 5, scale: 2 }).notNull().default('0'),
-  total_price: numeric('total_price', { precision: 10, scale: 2 }).notNull(),
-});
-
-// Tracking table
-export const trackingTable = pgTable('tracking', {
-  id: serial('id').primaryKey(),
-  tracking_number: varchar('tracking_number', { length: 100 }).notNull().unique(),
-  sales_transaction_id: integer('sales_transaction_id'),
-  customer_name: text('customer_name').notNull(),
-  customer_address: text('customer_address').notNull(),
-  assigned_packer_id: integer('assigned_packer_id'),
-  status: packingStatusEnum('status').notNull().default('NOT_PROCESSED'),
-  notes: text('notes'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Audit Log table
-export const auditLogTable = pgTable('audit_log', {
-  id: serial('id').primaryKey(),
-  user_id: integer('user_id').notNull(),
-  activity_type: activityTypeEnum('activity_type').notNull(),
-  table_name: text('table_name'),
-  record_id: integer('record_id'),
-  old_data: jsonb('old_data'),
-  new_data: jsonb('new_data'),
-  ip_address: varchar('ip_address', { length: 45 }),
-  user_agent: text('user_agent'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-});
-
-// Commissions table
-export const commissionsTable = pgTable('commissions', {
-  id: serial('id').primaryKey(),
-  employee_id: integer('employee_id').notNull(),
-  sales_transaction_id: integer('sales_transaction_id').notNull(),
-  commission_amount: numeric('commission_amount', { precision: 10, scale: 2 }).notNull(),
-  commission_rate: numeric('commission_rate', { precision: 5, scale: 2 }).notNull(),
-  is_paid: boolean('is_paid').notNull().default(false),
-  paid_date: timestamp('paid_date'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Returns table
-export const returnsTable = pgTable('returns', {
-  id: serial('id').primaryKey(),
-  reference_transaction_id: integer('reference_transaction_id').notNull(),
-  user_id: integer('user_id').notNull(),
-  return_date: timestamp('return_date').defaultNow().notNull(),
-  total_amount: numeric('total_amount', { precision: 10, scale: 2 }).notNull(),
-  reason: text('reason'),
-  status: transactionStatusEnum('status').notNull().default('FINAL'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Return Items table
-export const returnItemsTable = pgTable('return_items', {
-  id: serial('id').primaryKey(),
-  return_id: integer('return_id').notNull(),
-  product_id: integer('product_id').notNull(),
-  quantity: integer('quantity').notNull(),
-  unit_price: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
-  total_price: numeric('total_price', { precision: 10, scale: 2 }).notNull(),
-});
-
-// Receivables table (Customer payments)
-export const receivablesTable = pgTable('receivables', {
+// Accounts Receivable table
+export const accountsReceivableTable = pgTable('accounts_receivable', {
   id: serial('id').primaryKey(),
   customer_id: integer('customer_id').notNull(),
-  sales_transaction_id: integer('sales_transaction_id').notNull(),
-  amount_due: numeric('amount_due', { precision: 10, scale: 2 }).notNull(),
-  amount_paid: numeric('amount_paid', { precision: 10, scale: 2 }).notNull().default('0'),
-  due_date: timestamp('due_date'),
-  status: varchar('status', { length: 20 }).notNull().default('PENDING'), // PENDING, PARTIAL, PAID
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  transaction_id: integer('transaction_id').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  due_date: timestamp('due_date').notNull(),
+  status: paymentStatusEnum('status').notNull().default('PENDING'),
+  notes: text('notes'),
+  created_at: timestamp('created_at').defaultNow().notNull()
 });
 
-// Payables table (Supplier payments)
-export const payablesTable = pgTable('payables', {
-  id: serial('id').primaryKey(),
-  supplier_id: integer('supplier_id').notNull(),
-  purchase_order_id: integer('purchase_order_id').notNull(),
-  amount_due: numeric('amount_due', { precision: 10, scale: 2 }).notNull(),
-  amount_paid: numeric('amount_paid', { precision: 10, scale: 2 }).notNull().default('0'),
-  due_date: timestamp('due_date'),
-  status: varchar('status', { length: 20 }).notNull().default('PENDING'), // PENDING, PARTIAL, PAID
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Goods Receipt table
-export const goodsReceiptTable = pgTable('goods_receipt', {
+// Accounts Payable table
+export const accountsPayableTable = pgTable('accounts_payable', {
   id: serial('id').primaryKey(),
   purchase_order_id: integer('purchase_order_id').notNull(),
-  warehouse_id: integer('warehouse_id').notNull(),
-  user_id: integer('user_id').notNull(),
-  receipt_date: timestamp('receipt_date').defaultNow().notNull(),
+  supplier_name: varchar('supplier_name', { length: 255 }).notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  due_date: timestamp('due_date').notNull(),
+  status: paymentStatusEnum('status').notNull().default('PENDING'),
   notes: text('notes'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull()
 });
 
-// Goods Receipt Items table
-export const goodsReceiptItemsTable = pgTable('goods_receipt_items', {
+// Sales Commission table
+export const salesCommissionTable = pgTable('sales_commission', {
   id: serial('id').primaryKey(),
-  goods_receipt_id: integer('goods_receipt_id').notNull(),
-  product_id: integer('product_id').notNull(),
-  quantity_received: integer('quantity_received').notNull(),
-  quantity_ordered: integer('quantity_ordered').notNull(),
+  cashier_id: integer('cashier_id').notNull(),
+  transaction_id: integer('transaction_id').notNull(),
+  commission_rate: numeric('commission_rate', { precision: 5, scale: 4 }).notNull(),
+  commission_amount: numeric('commission_amount', { precision: 10, scale: 2 }).notNull(),
+  period_start: timestamp('period_start').notNull(),
+  period_end: timestamp('period_end').notNull(),
+  is_paid: boolean('is_paid').notNull().default(false),
+  created_at: timestamp('created_at').defaultNow().notNull()
 });
 
-// Warehouse Transfers table
-export const warehouseTransfersTable = pgTable('warehouse_transfers', {
-  id: serial('id').primaryKey(),
-  from_warehouse_id: integer('from_warehouse_id').notNull(),
-  to_warehouse_id: integer('to_warehouse_id').notNull(),
-  user_id: integer('user_id').notNull(),
-  transfer_date: timestamp('transfer_date').defaultNow().notNull(),
-  status: transactionStatusEnum('status').notNull().default('FINAL'),
-  notes: text('notes'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-});
+// Relations
+export const usersRelations = relations(usersTable, ({ many }) => ({
+  salesTransactions: many(salesTransactionsTable),
+  purchaseOrders: many(purchaseOrdersTable),
+  salesCommissions: many(salesCommissionTable)
+}));
 
-// Warehouse Transfer Items table
-export const warehouseTransferItemsTable = pgTable('warehouse_transfer_items', {
-  id: serial('id').primaryKey(),
-  transfer_id: integer('transfer_id').notNull(),
-  product_id: integer('product_id').notNull(),
-  quantity: integer('quantity').notNull(),
-});
+export const warehousesRelations = relations(warehousesTable, ({ many }) => ({
+  inventory: many(inventoryTable),
+  purchaseOrders: many(purchaseOrdersTable)
+}));
 
-// App Settings table
-export const appSettingsTable = pgTable('app_settings', {
-  id: serial('id').primaryKey(),
-  key: varchar('key', { length: 100 }).notNull().unique(),
-  value: text('value'),
-  description: text('description'),
-  updated_by: integer('updated_by'),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-});
+export const productsRelations = relations(productsTable, ({ many }) => ({
+  inventory: many(inventoryTable),
+  salesTransactionItems: many(salesTransactionItemsTable),
+  purchaseOrderItems: many(purchaseOrderItemsTable)
+}));
 
-// Export all tables for relation queries
+export const inventoryRelations = relations(inventoryTable, ({ one }) => ({
+  product: one(productsTable, {
+    fields: [inventoryTable.product_id],
+    references: [productsTable.id]
+  }),
+  warehouse: one(warehousesTable, {
+    fields: [inventoryTable.warehouse_id],
+    references: [warehousesTable.id]
+  })
+}));
+
+export const customersRelations = relations(customersTable, ({ many }) => ({
+  salesTransactions: many(salesTransactionsTable),
+  accountsReceivable: many(accountsReceivableTable)
+}));
+
+export const salesTransactionsRelations = relations(salesTransactionsTable, ({ one, many }) => ({
+  customer: one(customersTable, {
+    fields: [salesTransactionsTable.customer_id],
+    references: [customersTable.id]
+  }),
+  cashier: one(usersTable, {
+    fields: [salesTransactionsTable.cashier_id],
+    references: [usersTable.id]
+  }),
+  items: many(salesTransactionItemsTable),
+  shipping: many(shippingTable),
+  accountsReceivable: many(accountsReceivableTable),
+  salesCommissions: many(salesCommissionTable)
+}));
+
+export const salesTransactionItemsRelations = relations(salesTransactionItemsTable, ({ one }) => ({
+  transaction: one(salesTransactionsTable, {
+    fields: [salesTransactionItemsTable.transaction_id],
+    references: [salesTransactionsTable.id]
+  }),
+  product: one(productsTable, {
+    fields: [salesTransactionItemsTable.product_id],
+    references: [productsTable.id]
+  })
+}));
+
+export const purchaseOrdersRelations = relations(purchaseOrdersTable, ({ one, many }) => ({
+  warehouse: one(warehousesTable, {
+    fields: [purchaseOrdersTable.warehouse_id],
+    references: [warehousesTable.id]
+  }),
+  createdBy: one(usersTable, {
+    fields: [purchaseOrdersTable.created_by],
+    references: [usersTable.id]
+  }),
+  items: many(purchaseOrderItemsTable),
+  accountsPayable: many(accountsPayableTable)
+}));
+
+export const purchaseOrderItemsRelations = relations(purchaseOrderItemsTable, ({ one }) => ({
+  purchaseOrder: one(purchaseOrdersTable, {
+    fields: [purchaseOrderItemsTable.purchase_order_id],
+    references: [purchaseOrdersTable.id]
+  }),
+  product: one(productsTable, {
+    fields: [purchaseOrderItemsTable.product_id],
+    references: [productsTable.id]
+  })
+}));
+
+export const shippingRelations = relations(shippingTable, ({ one }) => ({
+  transaction: one(salesTransactionsTable, {
+    fields: [shippingTable.transaction_id],
+    references: [salesTransactionsTable.id]
+  })
+}));
+
+export const accountsReceivableRelations = relations(accountsReceivableTable, ({ one }) => ({
+  customer: one(customersTable, {
+    fields: [accountsReceivableTable.customer_id],
+    references: [customersTable.id]
+  }),
+  transaction: one(salesTransactionsTable, {
+    fields: [accountsReceivableTable.transaction_id],
+    references: [salesTransactionsTable.id]
+  })
+}));
+
+export const accountsPayableRelations = relations(accountsPayableTable, ({ one }) => ({
+  purchaseOrder: one(purchaseOrdersTable, {
+    fields: [accountsPayableTable.purchase_order_id],
+    references: [purchaseOrdersTable.id]
+  })
+}));
+
+export const salesCommissionRelations = relations(salesCommissionTable, ({ one }) => ({
+  cashier: one(usersTable, {
+    fields: [salesCommissionTable.cashier_id],
+    references: [usersTable.id]
+  }),
+  transaction: one(salesTransactionsTable, {
+    fields: [salesCommissionTable.transaction_id],
+    references: [salesTransactionsTable.id]
+  })
+}));
+
+// Export all tables for proper query building
 export const tables = {
   users: usersTable,
-  stores: storesTable,
   warehouses: warehousesTable,
-  productCategories: productCategoriesTable,
-  unitConversions: unitConversionsTable,
   products: productsTable,
-  customers: customersTable,
-  suppliers: suppliersTable,
-  employees: employeesTable,
   inventory: inventoryTable,
-  purchaseOrders: purchaseOrdersTable,
-  purchaseOrderItems: purchaseOrderItemsTable,
+  customers: customersTable,
   salesTransactions: salesTransactionsTable,
   salesTransactionItems: salesTransactionItemsTable,
-  tracking: trackingTable,
-  auditLog: auditLogTable,
-  commissions: commissionsTable,
-  returns: returnsTable,
-  returnItems: returnItemsTable,
-  receivables: receivablesTable,
-  payables: payablesTable,
-  goodsReceipt: goodsReceiptTable,
-  goodsReceiptItems: goodsReceiptItemsTable,
-  warehouseTransfers: warehouseTransfersTable,
-  warehouseTransferItems: warehouseTransferItemsTable,
-  appSettings: appSettingsTable
+  purchaseOrders: purchaseOrdersTable,
+  purchaseOrderItems: purchaseOrderItemsTable,
+  shipping: shippingTable,
+  accountsReceivable: accountsReceivableTable,
+  accountsPayable: accountsPayableTable,
+  salesCommission: salesCommissionTable
 };
