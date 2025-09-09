@@ -1,54 +1,112 @@
+import { db } from '../db';
+import { usersTable } from '../db/schema';
 import { type User, type CreateUserInput, type UpdateUserInput } from '../schema';
+import { eq } from 'drizzle-orm';
+
+// Simple password hashing function using Node.js built-in crypto
+async function hashPassword(password: string): Promise<string> {
+  const crypto = await import('crypto');
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
 
 export async function createUser(input: CreateUserInput): Promise<User> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new user account with proper role assignment.
-    // Should hash password and validate role permissions.
-    return Promise.resolve({
-        id: 1,
+  try {
+    // Hash the password
+    const password_hash = await hashPassword(input.password);
+
+    // Insert user record
+    const result = await db.insert(usersTable)
+      .values({
         username: input.username,
         email: input.email,
-        password_hash: 'hashed_password',
+        password_hash,
         role: input.role,
         first_name: input.first_name,
-        last_name: input.last_name,
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date()
-    });
+        last_name: input.last_name
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('User creation failed:', error);
+    throw error;
+  }
 }
 
 export async function updateUser(input: UpdateUserInput): Promise<User> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating existing user information and role permissions.
-    return Promise.resolve({
-        id: input.id,
-        username: input.username || 'updated_username',
-        email: input.email || 'updated@example.com',
-        password_hash: 'hashed_password',
-        role: input.role || 'CASHIER',
-        first_name: input.first_name || 'Updated',
-        last_name: input.last_name || 'User',
-        is_active: input.is_active !== undefined ? input.is_active : true,
-        created_at: new Date(),
-        updated_at: new Date()
-    });
+  try {
+    // Build update values, excluding undefined fields
+    const updateValues: Record<string, any> = {
+      updated_at: new Date()
+    };
+
+    if (input.username !== undefined) updateValues['username'] = input.username;
+    if (input.email !== undefined) updateValues['email'] = input.email;
+    if (input.role !== undefined) updateValues['role'] = input.role;
+    if (input.first_name !== undefined) updateValues['first_name'] = input.first_name;
+    if (input.last_name !== undefined) updateValues['last_name'] = input.last_name;
+    if (input.is_active !== undefined) updateValues['is_active'] = input.is_active;
+
+    // Update user record
+    const result = await db.update(usersTable)
+      .set(updateValues)
+      .where(eq(usersTable.id, input.id))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`User with id ${input.id} not found`);
+    }
+
+    return result[0];
+  } catch (error) {
+    console.error('User update failed:', error);
+    throw error;
+  }
 }
 
 export async function getUsers(): Promise<User[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching all users with their roles and permissions.
-    return Promise.resolve([]);
+  try {
+    const result = await db.select()
+      .from(usersTable)
+      .execute();
+
+    return result;
+  } catch (error) {
+    console.error('Fetching users failed:', error);
+    throw error;
+  }
 }
 
 export async function getUserById(id: number): Promise<User | null> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching a specific user by ID.
-    return Promise.resolve(null);
+  try {
+    const result = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, id))
+      .execute();
+
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error('Fetching user by ID failed:', error);
+    throw error;
+  }
 }
 
 export async function deactivateUser(id: number): Promise<{ success: boolean }> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is deactivating a user account (soft delete).
-    return Promise.resolve({ success: true });
+  try {
+    const result = await db.update(usersTable)
+      .set({ 
+        is_active: false,
+        updated_at: new Date()
+      })
+      .where(eq(usersTable.id, id))
+      .returning()
+      .execute();
+
+    return { success: result.length > 0 };
+  } catch (error) {
+    console.error('User deactivation failed:', error);
+    throw error;
+  }
 }

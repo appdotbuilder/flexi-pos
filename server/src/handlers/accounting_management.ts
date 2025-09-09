@@ -3,6 +3,9 @@ import {
     type AccountsPayable,
     type SalesCommission
 } from '../schema';
+import { db } from '../db';
+import { accountsReceivableTable } from '../db/schema';
+import { and, eq, lt } from 'drizzle-orm';
 
 // Accounts Receivable management
 export async function getAccountsReceivable(): Promise<AccountsReceivable[]> {
@@ -42,9 +45,28 @@ export async function markReceivableAsPaid(id: number): Promise<AccountsReceivab
 }
 
 export async function getOverdueReceivables(): Promise<AccountsReceivable[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching overdue receivables for follow-up.
-    return Promise.resolve([]);
+    try {
+        const today = new Date();
+        
+        const results = await db.select()
+            .from(accountsReceivableTable)
+            .where(
+                and(
+                    eq(accountsReceivableTable.status, 'PENDING'),
+                    lt(accountsReceivableTable.due_date, today)
+                )
+            )
+            .execute();
+
+        // Convert numeric fields from string to number
+        return results.map(receivable => ({
+            ...receivable,
+            amount: parseFloat(receivable.amount)
+        }));
+    } catch (error) {
+        console.error('Failed to fetch overdue receivables:', error);
+        throw error;
+    }
 }
 
 // Accounts Payable management
